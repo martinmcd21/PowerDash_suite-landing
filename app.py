@@ -32,6 +32,8 @@ html, body, [class*="css"], textarea, input{
   display:inline-flex; align-items:center; gap:.5rem; padding:.25rem .5rem; border-radius:999px;
   background:#fffbe6; border:1px solid var(--chip);
 }
+.logo-row { display:flex; gap:14px; justify-content:flex-end; align-items:center; }
+.logo-row img { max-height:40px; border-radius:8px; background:white; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -99,22 +101,48 @@ def get_apps() -> List[Dict]:
         pass
     return data
 
-# ---------- Tenant context via query params ----------
+# ---------- Tenant + logo context via query params / secrets ----------
 q = st.query_params.to_dict()
 tenant = q.get("tenant", [""])[0] if isinstance(q.get("tenant"), list) else q.get("tenant", "")
-logo = q.get("logo", [""])[0] if isinstance(q.get("logo"), list) else q.get("logo", "")
-color = q.get("color", ["#111827"])[0] if isinstance(q.get("color"), list) else q.get("color", "#111827")
+client_logo_qp = q.get("logo", [""])[0] if isinstance(q.get("logo"), list) else q.get("logo", "")
+pd_logo_qp = q.get("pd_logo", [""])[0] if isinstance(q.get("pd_logo"), list) else q.get("pd_logo", "")
 
-# ---------- Header ----------
-st.markdown("<div class='hero'>", unsafe_allow_html=True)
-if logo:
-    st.image(logo, width=48)
-title = "PowerDash HR — AI Tools"
-if tenant:
-    title += f" · {tenant}"
-st.markdown(f"### {title}")
-st.markdown("</div>", unsafe_allow_html=True)
-st.caption("Your central hub for PowerDash HR white-label apps. Use the tiles below to launch each tool.")
+# Prefer query params, else Secrets, else local asset for PD logo
+client_logo_url = client_logo_qp or st.secrets.get("CLIENT_LOGO_URL", "")
+powerdash_logo_url = pd_logo_qp or st.secrets.get("POWERDASH_LOGO_URL", "")
+
+# ---------- Header with right-aligned logos ----------
+left, right = st.columns([0.72, 0.28], vertical_alignment="center")
+
+with left:
+    st.markdown("<div class='hero'>", unsafe_allow_html=True)
+    title = "PowerDash HR — AI Tools"
+    if tenant:
+        title += f" · {tenant}"
+    st.markdown(f"### {title}")
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.caption("Your central hub for PowerDash HR white-label apps. Use the tiles below to launch each tool.")
+
+with right:
+    # Render client logo (if any) and PowerDash logo (URL or local asset)
+    logos_html = "<div class='logo-row'>"
+    if client_logo_url:
+        logos_html += f"<img src='{client_logo_url}' alt='Client logo'/>"
+    if powerdash_logo_url:
+        logos_html += f"<img src='{powerdash_logo_url}' alt='PowerDash HR'/>"
+    else:
+        # fallback to local asset path if present
+        # (Streamlit can serve repo image files via st.image, but for layout we use markdown)
+        try:
+            # Try to show local asset via st.image if URL not supplied
+            st.image("assets/powerdash-logo.png", width=140)
+            logos_html = ""  # we already placed an image
+        except Exception:
+            # If asset missing, render nothing
+            pass
+    logos_html += "</div>"
+    if logos_html != "</div>":
+        st.markdown(logos_html, unsafe_allow_html=True)
 
 # ---------- Grid of apps ----------
 apps = get_apps()
@@ -131,15 +159,14 @@ for i, app in enumerate(apps):
 
         if url:
             # Append tenant params to child app URL if present
-            if tenant or logo or color:
+            if tenant or client_logo_url:
                 sep = "&" if "?" in url else "?"
                 qp = {}
                 if tenant: qp["tenant"] = tenant
-                if logo: qp["logo"] = logo
-                if color: qp["color"] = color
+                if client_logo_url: qp["logo"] = client_logo_url
                 url = url + sep + up.urlencode(qp)
 
-            # unique label instead of key (link_button has no key on some versions)
+            # unique label (no key arg needed)
             st.link_button(f"Open · {label_suffix}", url, use_container_width=True)
         else:
             st.button(f"Add URL in settings · {label_suffix}",
