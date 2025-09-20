@@ -87,6 +87,7 @@ DEFAULT_APPS = [
 ]
 
 def get_apps() -> List[Dict]:
+    """Load tiles from Streamlit Secrets if provided, else use defaults."""
     data = DEFAULT_APPS
     try:
         if "APPS_JSON" in st.secrets:
@@ -123,13 +124,17 @@ with col_a:
 # ---------- Grid of apps ----------
 apps = get_apps()
 cols = st.columns(3)
+
 for i, app in enumerate(apps):
+    key_base = str(app.get("slug") or i)  # unique key per tile
     with cols[i % 3]:
         st.markdown("<div class='app-card'>", unsafe_allow_html=True)
         st.markdown(f"**{app.get('emoji','')} {app['name']}**")
         st.write(app["desc"])
+
         url = app.get("url") or ""
         if url:
+            # pass tenant params to child app if present
             if tenant or logo or color:
                 sep = "&" if "?" in url else "?"
                 qp = {}
@@ -137,9 +142,21 @@ for i, app in enumerate(apps):
                 if logo: qp["logo"] = logo
                 if color: qp["color"] = color
                 url = url + sep + up.urlencode(qp)
-            st.link_button("Open", url, use_container_width=True)
+
+            st.link_button(
+                "Open",
+                url,
+                use_container_width=True,
+                key=f"open-{key_base}",
+            )
         else:
-            st.button("Add URL in settings", disabled=True, use_container_width=True)
+            st.button(
+                "Add URL in settings",
+                disabled=True,
+                use_container_width=True,
+                key=f"placeholder-{key_base}",
+            )
+
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------- Footer ----------
