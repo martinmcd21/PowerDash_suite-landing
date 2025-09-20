@@ -21,13 +21,10 @@ html, body, [class*="css"], textarea, input{
   font-family:'Source Sans 3', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif !important;
 }
 .hero { display:flex; align-items:center; gap:1rem; margin-bottom:1rem; }
-.hero-logo { max-height:48px; border-radius:12px; }
 .app-card{
   border:1px solid rgba(0,0,0,.08); border-radius:16px; padding:18px; height:100%;
   box-shadow: 0 1px 2px rgba(0,0,0,.04);
 }
-.app-card h3{ margin:0 0 .25rem 0; font-size:1.05rem; }
-.app-card p{ opacity:.9; min-height:3rem; }
 .footer{
   margin-top:2rem; padding-top:1rem; border-top:1px solid rgba(0,0,0,.08); text-align:center; opacity:.85;
 }
@@ -109,32 +106,31 @@ logo = q.get("logo", [""])[0] if isinstance(q.get("logo"), list) else q.get("log
 color = q.get("color", ["#111827"])[0] if isinstance(q.get("color"), list) else q.get("color", "#111827")
 
 # ---------- Header ----------
-col_a, _ = st.columns([0.9, 0.1])
-with col_a:
-    st.markdown("<div class='hero'>", unsafe_allow_html=True)
-    if logo:
-        st.image(logo, width=48)
-    title = "PowerDash HR — AI Tools"
-    if tenant:
-        title += f" · {tenant}"
-    st.markdown(f"### {title}")
-    st.markdown("</div>", unsafe_allow_html=True)
-    st.caption("Your central hub for PowerDash HR white-label apps. Use the tiles below to launch each tool.")
+st.markdown("<div class='hero'>", unsafe_allow_html=True)
+if logo:
+    st.image(logo, width=48)
+title = "PowerDash HR — AI Tools"
+if tenant:
+    title += f" · {tenant}"
+st.markdown(f"### {title}")
+st.markdown("</div>", unsafe_allow_html=True)
+st.caption("Your central hub for PowerDash HR white-label apps. Use the tiles below to launch each tool.")
 
 # ---------- Grid of apps ----------
 apps = get_apps()
 cols = st.columns(3)
 
 for i, app in enumerate(apps):
-    key_base = str(app.get("slug") or i)  # unique key per tile
     with cols[i % 3]:
         st.markdown("<div class='app-card'>", unsafe_allow_html=True)
         st.markdown(f"**{app.get('emoji','')} {app['name']}**")
         st.write(app["desc"])
 
         url = app.get("url") or ""
+        label_suffix = app.get("slug") or str(i)
+
         if url:
-            # pass tenant params to child app if present
+            # Append tenant params to child app URL if present
             if tenant or logo or color:
                 sep = "&" if "?" in url else "?"
                 qp = {}
@@ -143,19 +139,11 @@ for i, app in enumerate(apps):
                 if color: qp["color"] = color
                 url = url + sep + up.urlencode(qp)
 
-            st.link_button(
-                "Open",
-                url,
-                use_container_width=True,
-                key=f"open-{key_base}",
-            )
+            # unique label instead of key (link_button has no key on some versions)
+            st.link_button(f"Open · {label_suffix}", url, use_container_width=True)
         else:
-            st.button(
-                "Add URL in settings",
-                disabled=True,
-                use_container_width=True,
-                key=f"placeholder-{key_base}",
-            )
+            st.button(f"Add URL in settings · {label_suffix}",
+                      disabled=True, use_container_width=True)
 
         st.markdown("</div>", unsafe_allow_html=True)
 
